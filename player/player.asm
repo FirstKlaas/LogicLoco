@@ -263,10 +263,14 @@
             lda #RESTFRAME_LEFT
             sta zpPlayerRestFrame
         !:
-            ldx zpPlayerX
+            lda zpPlayerX
+            cmp #9
+            bcc !+
+            ldx zpPlayerX 
             dex          
             stx zpPlayerX
             // We are heading to the left
+        !:
             lda #[HEADING_LEFT]
             sta zpPlayerHeading
             jmp !Exit+              // If we move left, we cannot move right at the same time
@@ -323,10 +327,14 @@
             lda #RESTFRAME_RIGHT
             sta zpPlayerRestFrame
         !:
+            lda zpPlayerX
+            cmp #164
+            bcs !+
 
             ldx zpPlayerX
             inx          
             stx zpPlayerX
+        !:
             // We are heading to the right
             lda #[HEADING_RIGHT]
             sta zpPlayerHeading
