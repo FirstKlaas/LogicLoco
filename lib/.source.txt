@@ -1,0 +1,8 @@
+.namespace MAPLOADER {
+    
+    SCREEN_ROWS: .lohifill 25, 40*i 
+
+    load_tile:
+        lda SCREEN_ROWS.lo 
+        sta ZP
+}

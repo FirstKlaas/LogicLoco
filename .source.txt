@@ -1,0 +1,7 @@
+.namespace ANIMATION {
+
+    .label DOOR_CHAR = $f000 + $58 
+    animate_door: {
+
+    }
+}

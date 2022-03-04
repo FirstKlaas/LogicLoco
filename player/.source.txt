@@ -1,0 +1,139 @@
+.namespace PLAYER {
+
+    .const PLAYER_BLOCK = $40
+    
+    Init: {
+            lda SPRITEACTIV
+            ora #%00000001
+            sta SPRITEACTIV
+            lda #70
+            sta SPRITE0X
+            sta SPRITE0Y
+            lda #COLOR_GREEN
+            lda #PLAYER_BLOCK
+            sta SPRITEPOINTERS
+            lda SPRITEMULTICOLOR
+            ora #1
+            sta SPRITEMULTICOLOR
+            lda #COLOR_PINK
+            sta SPRITEMULTICOLOR0
+            lda #COLOR_WHITE
+            sta SPRITEMULTICOLOR1
+            lda #COLOR_PURPLE
+            sta SPRITE0COLOR
+            
+            rts
+    }
+
+    .label JOYSTICK_PORT2   = $dc00
+
+    Control: {
+            lda JOYSTICK_PORT2  
+            ldx zpPlayerX
+            ldy zpPlayerY
+            lsr                 // the accumulator. this least significant
+            bcs !+              // 5 bits contain the switch closure
+            dey                 // information. if a switch is closed then it
+        !:  lsr                 // produces a zero bit. if a switch is open then
+            bcs !+              // it produces a one bit. The joystick dir-
+            iny                 // ections are right, left, forward, backward
+        !:  lsr                 // bit3=right, bit2=left, bit1=backward,
+            bcs !+              // bit0=forward and bit4=fire button.
+            dex                 
+        !:  lsr                 
+            bcs !+              
+            inx                 
+        !:  lsr                 
+            stx zpPlayerX
+            sty zpPlayerY
+            rts
+    }
+
+    Update: {
+            lda zpPlayerX
+            clc
+            rol
+            sta SPRITE0X 
+            bcc !+
+            lda SPRITESMAXX
+            ora #1
+            sta SPRITESMAXX
+            jmp !doy+
+        !:
+            lda SPRITESMAXX
+            and #%11111110
+            sta SPRITESMAXX
+        !doy:
+            lda zpPlayerY
+            sta SPRITE0Y
+            rts
+    }
+
+    GetCollisions: {
+            // Check left foot
+            ldx #1
+            ldy #20
+            jsr PLAYER.GetScreenPosition
+            jsr UTIL.GetCharacterAt
+            tax
+            lda CHAR_COLORS,x
+            sta zpPlayerFloorCollision
+
+            // Check right foot
+            ldx #5
+            ldy #20
+            jsr PLAYER.GetScreenPosition
+            jsr UTIL.GetCharacterAt
+            tax
+            lda CHAR_COLORS,x
+            ora zpPlayerFloorCollision
+            and #$f0
+            sta zpPlayerFloorCollision
+            rts
+    }
+
+    GetScreenPosition: {
+        .const XBorderOffset = 10
+        .const YBorderOffset = 50
+
+        .label xPixelOffset = zpTemp00 
+        .label yPixelOffset = zpTemp01
+            
+            stx xPixelOffset
+            sty yPixelOffset
+            
+            lda zpPlayerX
+            cmp #XBorderOffset
+            bcs !+
+            lda #XBorderOffset
+        !:
+            clc 
+            adc xPixelOffset
+            sec 
+            sbc #XBorderOffset
+            lsr 
+            lsr
+            tax
+
+            lda zpPlayerY
+            cmp #YBorderOffset
+            bcs !+
+            lda #YBorderOffset
+        !:
+            clc 
+            adc yPixelOffset
+            sec
+            sbc #YBorderOffset
+            lsr 
+            lsr 
+            lsr 
+            tay
+            rts
+    }
+
+    JumpAndFall: {
+
+
+            rts
+    }
+}
