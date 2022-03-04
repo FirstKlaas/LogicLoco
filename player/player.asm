@@ -112,6 +112,19 @@
     .label JOYSTICK_PORT2   = $dc00
 
     Control: {
+
+        // Are we touching a ladder with our feet?
+        // If not, clear the climb state
+        lda zpPlayerFloorCollision
+        and #[COLLISION_LADDER]
+        bne !+
+
+        // Clear the climb status (Just in case)
+        lda zpPlayerState
+        and #[255 - STATE_CLIMB]
+        sta zpPlayerState
+
+        !:
             lda JOYSTICK_PORT2  
             sta zpJoystick2State
 
