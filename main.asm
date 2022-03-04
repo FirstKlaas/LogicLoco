@@ -36,40 +36,48 @@ main:
     ldy #0
     jsr SCREEN.color_row
 
-the_end:
-    lda #$ff
-    cmp REG_RASTERLINE
-    bne *-3
-    inc BORDER_COLOR
-    inc ZP_FrameCounter
+    M_INSTALL_RASTER_IRQ(raster_irq_gameloop, 0)
     
-    lda zpPlayerState
-    PRINT_HEX_VVACC(1,0)
-
-    lda zpPlayerX
-    PRINT_HEX_VVACC(4,0)
-
-    lda zpPlayerY
-    PRINT_HEX_VVACC(7,0)
-
-    lda zpJoystick2State
-    PRINT_HEX_VVACC(10,0)
-
-    lda zpPlayerRestFrame
-    PRINT_HEX_VVACC(13,0)
-
-    jsr ANIMATION.animate_door
-    jsr PLAYER.GetCollisions
-    jsr PLAYER.Control
-    jsr PLAYER.JumpAndFall
-    jsr PLAYER.Draw
-    dec BORDER_COLOR
-    jmp the_end
-
+    jmp *
 
 main_irq:
+        nop
+        rti 
 
-    rti
+raster_irq_gameloop: {
+        M_IRQ_START_L(irq_exit)
+        //inc BORDER_COLOR
+        inc ZP_FrameCounter
+        
+        M_SET_TEXT_MULTICOLORS(COLOR_LIGHTGREEN, COLOR_WHITE)
+
+        lda zpPlayerState
+        PRINT_HEX_VVACC(1,0)
+
+        lda zpPlayerX
+        PRINT_HEX_VVACC(4,0)
+
+        lda zpPlayerY
+        PRINT_HEX_VVACC(7,0)
+
+        lda zpJoystick2State
+        PRINT_HEX_VVACC(10,0)
+
+        lda zpPlayerRestFrame
+        PRINT_HEX_VVACC(13,0)
+
+        jsr PLAYER.GetCollisions
+        jsr PLAYER.Control
+        jsr PLAYER.JumpAndFall
+        jsr PLAYER.Draw
+        jsr ANIMATION.animate_door
+        //dec BORDER_COLOR
+        M_RASTER_IRQ(raster_irq_gameloop, 0)
+        jmp irq_exit
+}
+
+irq_exit:
+        M_IRQ_EXIT()
 
     .import source "player/player.asm"   
     .import source "util.asm" 
@@ -78,8 +86,8 @@ main_irq:
     
     .import source "lib/screen.asm"
     .import source "lib/math.asm"
+    .import source "animations.asm"
 
     .import source "zeropage.asm"
     .import source "assets.asm"
-    .import source "animations.asm"
     

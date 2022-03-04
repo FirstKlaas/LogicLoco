@@ -119,6 +119,13 @@
         and #[COLLISION_LADDER]
         bne !+
 
+        lda zpPlayerState
+        and #[STATE_CLIMB]
+        bne !+
+        
+        lda #[HEADING_LEFT]
+        sta zpPlayerHeading
+        
         // Clear the climb status (Just in case)
         lda zpPlayerState
         and #[255 - STATE_CLIMB]

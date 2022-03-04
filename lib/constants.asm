@@ -57,7 +57,7 @@
                                                //        ein BYTE für die X-Position nicht aus!
                                                //        Daher wird hier das 9. Bit der X-Pos
                                                //        gespeichert. BIT-Nr. (0-7) = Sprite-Nr.
-    .label CTRLREG1            = $0d11         // Controlregister 1. Each Bit has a different function
+    .label CTRLREG1            = $d011         // Controlregister 1. Each Bit has a different function
                                                // Bit 7: Bit 9 of RASTERLINE
     .label REG_RASTERLINE      = $d012         // Current raster line (read) or to trigger IRQ (write)
     .label SPRITEACTIV         = $d015         //(21) Bestimmt welche Sprites sichtbar sind
