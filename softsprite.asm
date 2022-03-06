@@ -8,10 +8,12 @@
         .fill NUMBER_OF_SPRITES, $00  // XPOS
         .fill NUMBER_OF_SPRITES, $00  // YPOS
 
-
     .label ID   = _DATA
     .label XPOS = _DATA + NUMBER_OF_SPRITES
     .label YPOS = _DATA + [2 * NUMBER_OF_SPRITES]
+
+    .label SCREEN_BUFFER_PTR    = $cc00
+    .label SCREEN_RAM_PTR       = $c000
 
     .print "Softsprite Data: " + toHexString(ID)
 
@@ -30,6 +32,24 @@
         rts
     }
 
+
+    // Creates a copy of the current screen. Only screen
+    // ram is copied.
+    CopyScreenBuffer: {
+            ldx #249
+        !loop:
+            lda SCREEN_RAM_PTR,x 
+            sta SCREEN_BUFFER_PTR,x
+            lda SCREEN_RAM_PTR+250,x 
+            sta SCREEN_BUFFER_PTR+250,x
+            lda SCREEN_RAM_PTR+500,x 
+            sta SCREEN_BUFFER_PTR+500,x
+            lda SCREEN_RAM_PTR+750,x 
+            sta SCREEN_BUFFER_PTR+750,x
+            dex 
+            bpl !loop- 
+            rts 
+    }
 
     // Adds a sprite at the current index and increments
     // the index by one. If current index equals number

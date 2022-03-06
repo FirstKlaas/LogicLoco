@@ -6,7 +6,13 @@ $f000 - $f7ff   1 charset
 $f800 - $fffd  16 Sprites
 */
 
+* = $c000 "Screen"
+    .fill 1024, $00
 
+/*
+* = $cc00 "Screenbuffer"
+    .fill 1024, $00
+*/
 * = $d000 "Player Sprites"
     .import binary "assets\sprites.bin"
     

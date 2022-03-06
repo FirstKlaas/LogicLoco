@@ -6,6 +6,7 @@ BasicUpstart2(main)
 /***********************************************
     MAIN PROGRAM LOOP
 ************************************************/
+* = $1000 "Main Program"
 main:
 
     M_DISABLE_CIA_INTERRUPTS()
@@ -19,14 +20,19 @@ main:
 
     M_VIC_ENABLE_MULTICOLOR_TEXTMODE()
 
-    jsr SCREEN.clear
-    jsr MAPLOADER.load_map  
     jsr PLAYER.Init
     jsr SOFTSPRITE.Initialize
+
+    jsr SCREEN.clear
+    jsr MAPLOADER.load_map  
+    jsr SOFTSPRITE.CopyScreenBuffer
+
+    /*
     lda #$ff
     ldx #$10
     ldy #$20
     jsr SOFTSPRITE.AddSprite
+    */
 
     // Print blanks in the first line
     lda #0
@@ -90,6 +96,7 @@ raster_irq_gameloop: {
         // -------------------------------------
         // BG Color Animation
         // -------------------------------------
+        /*
         ldx #100
         ldy #COLOR_RAMP_01_SIZE
     !:
@@ -101,6 +108,8 @@ raster_irq_gameloop: {
         dey
         bpl !-
         M_SET_BORDER_COLOR_V(COLOR_BLACK)
+        M_RASTER_IRQ(raster_irq_gameloop, 0)
+        */
         M_RASTER_IRQ(raster_irq_gameloop, 0)
         jmp irq_exit
 }
