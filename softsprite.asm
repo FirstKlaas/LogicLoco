@@ -13,6 +13,8 @@
     .label XPOS = _DATA + NUMBER_OF_SPRITES
     .label YPOS = _DATA + [2 * NUMBER_OF_SPRITES]
 
+    .print "Softsprite Data: " + toHexString(ID)
+
     CURRENT_SPRITE_INDEX: .byte $00 
 
     Initialize: {
@@ -25,6 +27,7 @@
             sta YPOS,x
             dex 
             bpl !loop-
+        rts
     }
 
 
@@ -40,8 +43,21 @@
     // REG Y: Ypos of the sprite
     //
     AddSprite: {
-        stx zpTemp00
-        
+            stx zpTemp00 
+            ldx CURRENT_SPRITE_INDEX
+            sta ID,x 
+            tya
+            sta YPOS,x 
+            lda zpTemp00
+            sta XPOS,x
+            inx
+            txa
+            cmp #NUMBER_OF_SPRITES 
+            bne !+ 
+            lda #00 
+        !:
+            sta CURRENT_SPRITE_INDEX 
+            rts
     }
 
     

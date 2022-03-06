@@ -27,6 +27,12 @@
     rti    
 }
 
+.macro M_WAIT_FOR_RASTERLINE_V(line) {
+    lda #[line]
+    cmp REG_RASTERLINE 
+    bne *-3
+}
+
 .macro M_RASTER_IRQ(func, line) {
         lda #<func
         ldy #>func
