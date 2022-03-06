@@ -1,6 +1,8 @@
     .import source "lib/constants.asm"
     .import source "main_macros.asm"
-     
+
+    .const ID_PLAYER_BULLET = $01
+
 BasicUpstart2(main)
 
 /***********************************************
@@ -27,12 +29,17 @@ main:
     jsr MAPLOADER.load_map  
     jsr SOFTSPRITE.CopyScreenBuffer
 
-    /*
-    lda #$ff
+    
+    lda #[ID_PLAYER_BULLET]
     ldx #$10
-    ldy #$20
+    ldy #$5
     jsr SOFTSPRITE.AddSprite
-    */
+    
+    ldx #0
+    jsr SOFTSPRITE.DrawSingleSprite
+
+    ldx #0
+    jsr SOFTSPRITE.ClearSingleSprite 
 
     // Print blanks in the first line
     lda #0
