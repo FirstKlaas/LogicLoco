@@ -14,14 +14,12 @@
         .fill NUMBER_OF_SPRITES, $00  // ID
         .fill NUMBER_OF_SPRITES, $00  // XPOS
         .fill NUMBER_OF_SPRITES, $00  // YPOS
+        .fill NUMBER_OF_SPRITES, $00  // Char Index. First character of four in a row.
 
-    _ID_CHAR:
-        .byte $00, $1b
-
-    .label ID               = _DATA
-    .label XPOS             = _DATA + NUMBER_OF_SPRITES
-    .label YPOS             = _DATA + [2 * NUMBER_OF_SPRITES]
-    .label ID_CHAR_TABLE    = _ID_CHAR
+    .label ID                   = _DATA
+    .label XPOS                 = _DATA + NUMBER_OF_SPRITES
+    .label YPOS                 = _DATA + [2 * NUMBER_OF_SPRITES]
+    .label CHAR_INDEX           = _DATA + [3 * NUMBER_OF_SPRITES]
 
     .label SCREEN_BUFFER_PTR    = $cc00
     .label SCREEN_RAM_PTR       = $c000
@@ -32,8 +30,6 @@
     .label OFFSCREEN_ROW_LO = _BUF_ROW.lo 
     .label OFFSCREEN_ROW_HI = _BUF_ROW.hi 
     
-    .print "Softsprite Data: " + toHexString(ID)
-
     CURRENT_SPRITE_INDEX: .byte $00 
 
     Initialize: {
@@ -108,7 +104,9 @@
     DrawSingleSprite: {
 
         .label SCREEN_ROW_PTR   = ZP_num1
+        .label TEMP_X           = zpTemp00
 
+        stx TEMP_X
         lda YPOS, x
         tay
         lda SCREEN.ROW_ADR.lo, y
@@ -124,8 +122,7 @@
         bne !+                  // Only continue, if ID is not zero
         rts
     !:
-        tax                     // Use the ID as the table offset
-        lda ID_CHAR_TABLE, x    // Load the first of the four characters into accu
+        lda CHAR_INDEX, x       // Load the first of the four characters into accu
         tax                     // Save the character in x register
 
         // Top Left
@@ -151,6 +148,7 @@
         inx
         txa
         sta (SCREEN_ROW_PTR), y
+        ldx TEMP_X
         rts
     }
 
@@ -171,6 +169,17 @@
             dex 
             bne !loop- 
             rts 
+    }
+
+    // Sets the character to be used for the sprite
+    // The provided character plus the following
+    // three are reserved for the sprite.
+    //
+    // REG X: Index of the sprite
+    // REG A: Number of the character
+    SetSpriteChar: {
+        sta CHAR_INDEX, x
+        rts
     }
 
     // Adds a sprite at the current index and increments

@@ -5,7 +5,7 @@
     animate_door: {
 
             lda ZP_FrameCounter
-            and #03
+            and #07
             beq !+
             rts
         !:

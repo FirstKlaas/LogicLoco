@@ -36,10 +36,12 @@ main:
     jsr SOFTSPRITE.AddSprite
     
     ldx #0
+    lda #$1b // "1" Character
+    jsr SOFTSPRITE.SetSpriteChar
     jsr SOFTSPRITE.DrawSingleSprite
 
-    ldx #0
-    jsr SOFTSPRITE.ClearSingleSprite 
+    //jsr SOFTSPRITE.ClearSingleSprite 
+
 
     // Print blanks in the first line
     lda #0
