@@ -111,6 +111,16 @@
 
     }
 
+    DrawSprites: {
+            ldx #NUMBER_OF_SPRITES
+            dex
+        !loop:
+            jsr DrawSingleSprite
+            dex 
+            bpl !loop-
+        rts
+    }
+
     // Draws a sprite
     // REG X: Index of the sprite to draw
     DrawSingleSprite: {
@@ -150,7 +160,8 @@
 
         // Top Right
         iny 
-        inx  
+        inx
+        inx   
         txa
         sta (SCREEN_ROW_PTR), y
 
@@ -159,12 +170,13 @@
         clc 
         adc #$27 
         tay 
-        inx
+        dex
         txa
         sta (SCREEN_ROW_PTR), y
 
         // Bottom Right
         iny 
+        inx
         inx
         txa
         sta (SCREEN_ROW_PTR), y

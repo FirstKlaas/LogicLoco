@@ -32,14 +32,15 @@ main:
     
     lda #[ID_PLAYER_BULLET]
     clc 
-    ldx #$00
+    ldx #$08
     ldy #$08
     jsr SOFTSPRITE.AddSprite
     
     ldx #0
-    lda #$1b // "1" Character
+    lda #$5a // "1" Character
     jsr SOFTSPRITE.SetSpriteChar
-    jsr SOFTSPRITE.DrawSingleSprite
+    jsr SOFTSPRITE.DrawSprites
+    //jsr SOFTSPRITE.DrawSingleSprite
 
     //jsr SOFTSPRITE.ClearSingleSprite 
 
