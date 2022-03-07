@@ -31,8 +31,9 @@ main:
 
     
     lda #[ID_PLAYER_BULLET]
-    ldx #$10
-    ldy #$5
+    clc 
+    ldx #$00
+    ldy #$08
     jsr SOFTSPRITE.AddSprite
     
     ldx #0

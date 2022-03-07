@@ -12,14 +12,16 @@
 
     _DATA:
         .fill NUMBER_OF_SPRITES, $00  // ID
-        .fill NUMBER_OF_SPRITES, $00  // XPOS
+        .fill NUMBER_OF_SPRITES, $00  // XPOS_LSB
+        .fill NUMBER_OF_SPRITES, $00  // XPOS_MSB
         .fill NUMBER_OF_SPRITES, $00  // YPOS
         .fill NUMBER_OF_SPRITES, $00  // Char Index. First character of four in a row.
 
     .label ID                   = _DATA
-    .label XPOS                 = _DATA + NUMBER_OF_SPRITES
-    .label YPOS                 = _DATA + [2 * NUMBER_OF_SPRITES]
-    .label CHAR_INDEX           = _DATA + [3 * NUMBER_OF_SPRITES]
+    .label XPOS_LSB             = _DATA + NUMBER_OF_SPRITES
+    .label XPOS_MSB             = _DATA + [2 * NUMBER_OF_SPRITES]
+    .label YPOS                 = _DATA + [3 * NUMBER_OF_SPRITES]
+    .label CHAR_INDEX           = _DATA + [4 * NUMBER_OF_SPRITES]
 
     .label SCREEN_BUFFER_PTR    = $cc00
     .label SCREEN_RAM_PTR       = $c000
@@ -38,7 +40,8 @@
             ldx #NUMBER_OF_SPRITES-1
         !loop:
             sta ID,x 
-            sta XPOS,x 
+            sta XPOS_LSB,x 
+            sta XPOS_MSB,x 
             sta YPOS,x
             dex 
             bpl !loop-
@@ -60,6 +63,9 @@
     !:
         // Store the screen row pointer in zeropage        
         lda YPOS, x
+        lsr                 // Converting from pixel space to 
+        lsr                 // character space, by dividing by eight
+        lsr
         tay
         lda SCREEN.ROW_ADR.lo, y
         sta SCREEN_ROW_PTR
@@ -71,7 +77,13 @@
         lda OFFSCREEN_ROW_HI, y
         sta BUFFER_ROW_PTR+1 
 
-        lda XPOS, x
+        lda XPOS_MSB, x     // Dividing xpos by eight.
+        lsr                 // Dividing High Byte, updating carry bit
+        lda XPOS_LSB, x 
+        ror                 // Dividing by two, taking carry into account
+        lsr 
+        lsr
+
         tay
 
         // Top Left
@@ -108,13 +120,21 @@
 
         stx TEMP_X
         lda YPOS, x
+        lsr 
+        lsr 
+        lsr 
         tay
         lda SCREEN.ROW_ADR.lo, y
         sta SCREEN_ROW_PTR
         lda SCREEN.ROW_ADR.hi, y
         sta SCREEN_ROW_PTR+1 
 
-        lda XPOS, x 
+        lda XPOS_MSB, x
+        lsr 
+        lda XPOS_LSB, x
+        ror  
+        lsr 
+        lsr  
         tay 
 
         // Load the Character from the charset
@@ -208,7 +228,10 @@
             tya
             sta YPOS,x 
             lda TMP_SPRITE_XPOS
-            sta XPOS,x
+            sta XPOS_LSB,x
+            lda #0 
+            rol 
+            sta XPOS_MSB,x
             inx
             txa
             cmp #NUMBER_OF_SPRITES 
