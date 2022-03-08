@@ -3,6 +3,8 @@
 
     .const ID_PLAYER_BULLET = $01
 
+    .label FRAME_COUNTER = ZP_FrameCounter
+
 BasicUpstart2(main)
 
 /***********************************************
@@ -24,6 +26,7 @@ main:
 
     jsr PLAYER.Init
     jsr SOFTSPRITE.Initialize
+    jsr SOFTSPRITE.PrecalculateTemplateCharAdresses
 
     jsr SCREEN.clear
     jsr MAPLOADER.load_map  
@@ -39,8 +42,12 @@ main:
     ldx #0
     lda #$5a // "1" Character
     jsr SOFTSPRITE.SetSpriteChar
-    jsr SOFTSPRITE.DrawSprites
-    //jsr SOFTSPRITE.DrawSingleSprite
+    //jsr SOFTSPRITE.DrawSprites
+
+    ldx #0  
+    jsr SOFTSPRITE.UpdateSingleSprite
+    ldx #0
+    jsr SOFTSPRITE.DrawSingleSprite
 
     //jsr SOFTSPRITE.ClearSingleSprite 
 
@@ -61,7 +68,7 @@ main:
     M_INSTALL_RASTER_IRQ(raster_irq_gameloop, 0)
 !:
     M_WAIT_FOR_RASTERLINE_V(255)
-    inc ZP_FrameCounter
+    inc FRAME_COUNTER
     jmp !-
 
 main_irq:

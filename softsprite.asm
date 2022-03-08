@@ -7,8 +7,26 @@
 .namespace SOFTSPRITE {
 
     .const NUMBER_OF_SPRITES = 8
+    .const SPRITE_CHARSET_START = $5a
 
+    _TEMPLATE_CHARS:
+        .byte $00, $4e
+    __TEMPLATE_CHARS:
 
+    .label TEMPLATE_CHARS = _TEMPLATE_CHARS
+    .const NUMBER_OF_TEMPLATE_CHARS = [__TEMPLATE_CHARS - _TEMPLATE_CHARS]
+
+    _TEMPLATE_CHAR_PTR_LSB:
+        .fill NUMBER_OF_TEMPLATE_CHARS, $00 
+
+    _TEMPLATE_CHAR_PTR_MSB:
+        .fill NUMBER_OF_TEMPLATE_CHARS, $00
+
+    .label TEMPLATE_CHAR_MEM_LSB = _TEMPLATE_CHAR_PTR_LSB
+    .label TEMPLATE_CHAR_MEM_MSB = _TEMPLATE_CHAR_PTR_MSB
+
+    .print "Template Char MEM LSB " + toHexString(TEMPLATE_CHAR_MEM_LSB)
+    .print "Template Char MEM MSB " + toHexString(TEMPLATE_CHAR_MEM_MSB)
 
     _DATA:
         .fill NUMBER_OF_SPRITES, $00  // ID
@@ -25,14 +43,25 @@
 
     .label SCREEN_BUFFER_PTR    = $cc00
     .label SCREEN_RAM_PTR       = $c000
+    .label CHARSET              = $f000
+    .label SPRITE_RAM_PTR       = CHARSET + [SPRITE_CHARSET_START * 8]
+
+    _SPRITE_DATA_TILE_START:
+        .lohifill NUMBER_OF_SPRITES, SPRITE_RAM_PTR + [i * 32]
+
+    .label SPRITE_DATA_TILE_LSB =  _SPRITE_DATA_TILE_START.lo
+    .label SPRITE_DATA_TILE_MSB =  _SPRITE_DATA_TILE_START.hi
 
     _BUF_ROW:
         .lohifill 25, SCREEN_BUFFER_PTR + 40*i
 
     .label OFFSCREEN_ROW_LO = _BUF_ROW.lo 
     .label OFFSCREEN_ROW_HI = _BUF_ROW.hi 
-    
+
     CURRENT_SPRITE_INDEX: .byte $00 
+
+    TEMPLATE_CHAR:
+        .fill 8, $00
 
     Initialize: {
             lda #0
@@ -48,6 +77,69 @@
         rts
     }
 
+    // Precalculates the 16 bit address of an template
+    // character.
+    //
+    // address = charset + 8 * template_character
+    //
+    PrecalculateTemplateCharAdresses: {
+            ldx #[NUMBER_OF_TEMPLATE_CHARS-1] 
+            !loop:
+                lda TEMPLATE_CHARS,x    // Load the character into accu
+                sta TEMPLATE_CHAR_MEM_LSB, x
+                lda #00 
+                sta TEMPLATE_CHAR_MEM_MSB, x
+                // Multiply by eight
+                asl TEMPLATE_CHAR_MEM_LSB, x
+                rol TEMPLATE_CHAR_MEM_MSB, x
+                asl TEMPLATE_CHAR_MEM_LSB, x
+                rol TEMPLATE_CHAR_MEM_MSB, x
+                asl TEMPLATE_CHAR_MEM_LSB, x
+                rol TEMPLATE_CHAR_MEM_MSB, x
+                // Add the base address of the charset
+                clc 
+                lda #<CHARSET 
+                adc TEMPLATE_CHAR_MEM_LSB, x
+                sta TEMPLATE_CHAR_MEM_LSB, x
+                lda #>CHARSET 
+                adc TEMPLATE_CHAR_MEM_MSB, x
+                sta TEMPLATE_CHAR_MEM_MSB, x
+            dex 
+            bne !loop-  // For id 0, we do not need to calculate, as 0 indicates
+                        // an inactive sprite
+        rts
+    } 
+
+    // REG X: Delta x
+    // REG Y: Delta y 
+    // REG A: SpriteIndex
+    MoveSprite: {
+        .label DX = zpTemp00 
+        .label DY = zpTemp01 
+            
+            stx DX  // Save dx, so we can use x register 
+            tax     // index to accu 
+
+            // Chech the ID.
+            lda ID,x 
+            bne !+
+            rts         // Ignore the sprite, if the ID is zero, as zero
+                        // indicates an inactive sprite
+        !:
+            lda YPOS, x
+            clc 
+            adc DY 
+            sta YPOS, x
+            clc  
+            lda XPOS_LSB,x 
+            adc DX
+            sta XPOS_LSB,x
+            lda XPOS_MSB,x
+            adc #00
+            sta XPOS_MSB,x
+            
+        rts
+    }
 
     // Clears a single sprite
     // REG X: Index of the sprite to be cleared
@@ -109,6 +201,83 @@
         sta (SCREEN_ROW_PTR), y
         rts
 
+    }
+
+    UpdateSingleSprite: {
+        .label XOffset  = zpTemp00 
+        .label YOffset  = zpTemp01
+        .label TMP      = zpTemp02
+        .label CharDataPtr = ZP_num1
+        .label CharTemplatePtr = ZP_num2
+
+            lda ID,x 
+            bne !+
+            rts     // If ID is zero, igore sprite.
+        !: 
+            // Calculate X Offset
+            lda XPOS_LSB, x 
+            and #7              // Only the least significant three bits are relevant. 
+            sta XOffset         // Offset is between 0 and 7
+            
+            // Calculate Y Offset
+            lda YPOS,x 
+            and #7
+            sta YOffset
+            
+            // Setup pointer to the char memory for this sprite/tile
+            // This is the target mem
+            lda SPRITE_DATA_TILE_LSB, x
+            sta CharDataPtr 
+            lda SPRITE_DATA_TILE_MSB, x
+            sta CharDataPtr+1 
+
+            // Setup the pointer to the char template
+            // This is the source mem
+            lda ID, x // Load the sprite id and use it as the index
+            tay
+            lda TEMPLATE_CHAR_MEM_LSB, y
+            sta CharTemplatePtr 
+            lda TEMPLATE_CHAR_MEM_MSB, y
+            sta CharTemplatePtr+1 
+
+            // Clear the complete tile
+            ldy #0
+            lda #0 
+        !LoopClearTile:
+            sta (CharDataPtr), y        
+            iny 
+            cpy #32
+            bne !LoopClearTile-
+
+
+            // Copy the template char, so we can
+            // use x as an index
+            ldy #7 
+        !LoopCopyTemplateChar:
+            lda (CharTemplatePtr), y
+            sta TEMPLATE_CHAR, y
+            dey 
+            bpl !LoopCopyTemplateChar- 
+
+            // Now update vertical shift
+            ldy #0
+            ldx #0
+        !:
+            lda #00
+            cpy YOffset
+            bcc !Next+
+            cpx #8 
+            beq !Next+              // If we have copied the complete char already
+                                    // skip. We continue to fill with blank lines
+            lda TEMPLATE_CHAR,x
+            inx
+        !Next:
+            sta (CharDataPtr), y        
+            iny 
+            cpy #16 
+            bne !- 
+
+        rts
     }
 
     DrawSprites: {
