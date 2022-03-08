@@ -118,6 +118,7 @@
         .label DY = zpTemp01 
             
             stx DX  // Save dx, so we can use x register 
+            sty DY
             tax     // index to accu 
 
             // Chech the ID.
@@ -276,6 +277,10 @@
             iny 
             cpy #16 
             bne !- 
+
+            // Now update horizontal shift
+        !HorizontalShift:
+
 
         rts
     }

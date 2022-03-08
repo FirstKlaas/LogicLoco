@@ -39,6 +39,12 @@ main:
     ldy #$08
     jsr SOFTSPRITE.AddSprite
     
+    
+    lda #0 
+    ldx #0 
+    ldy #4 
+    jsr SOFTSPRITE.MoveSprite 
+    
     ldx #0
     lda #$5a // "1" Character
     jsr SOFTSPRITE.SetSpriteChar
