@@ -22,11 +22,15 @@
     _TEMPLATE_CHAR_PTR_MSB:
         .fill NUMBER_OF_TEMPLATE_CHARS, $00
 
+    SPRITE_MASK_TABLE:
+        .fill 256, $00
+
     .label TEMPLATE_CHAR_MEM_LSB = _TEMPLATE_CHAR_PTR_LSB
     .label TEMPLATE_CHAR_MEM_MSB = _TEMPLATE_CHAR_PTR_MSB
 
     .print "Template Char MEM LSB " + toHexString(TEMPLATE_CHAR_MEM_LSB)
     .print "Template Char MEM MSB " + toHexString(TEMPLATE_CHAR_MEM_MSB)
+    .print "SpriteMask Table      " + toHexString(SPRITE_MASK_TABLE)
 
     _DATA:
         .fill NUMBER_OF_SPRITES, $00  // ID
@@ -74,6 +78,8 @@
             sta YPOS,x
             dex 
             bpl !loop-
+
+        jsr CreateSpriteMaskTable
         rts
     }
 
@@ -113,6 +119,12 @@
     // REG X: Delta x
     // REG Y: Delta y 
     // REG A: SpriteIndex
+    //
+    // Attention: As we use multicolor chars, the x value
+    // is multiplied by two, as two pixels are used per color
+    // So moving sprite by one in x means two screen pixels
+    // In multicolor mode each character pixel is two pixel
+    // wide.
     MoveSprite: {
         .label DX = zpTemp00 
         .label DY = zpTemp01 
@@ -132,8 +144,10 @@
             adc DY 
             sta YPOS, x
             clc  
-            lda XPOS_LSB,x 
-            adc DX
+            lda DX
+            asl
+             
+            adc XPOS_LSB,x
             sta XPOS_LSB,x
             lda XPOS_MSB,x
             adc #00
@@ -209,6 +223,7 @@
         .label YOffset  = zpTemp01
         .label TMP      = zpTemp02
         .label CharDataPtr = ZP_num1
+        .label CharDataPtrRight = zpTempVector01
         .label CharTemplatePtr = ZP_num2
 
             lda ID,x 
@@ -229,8 +244,13 @@
             // This is the target mem
             lda SPRITE_DATA_TILE_LSB, x
             sta CharDataPtr 
+            clc 
+            adc #16
+            sta CharDataPtrRight
             lda SPRITE_DATA_TILE_MSB, x
             sta CharDataPtr+1 
+            sta CharDataPtrRight+1
+
 
             // Setup the pointer to the char template
             // This is the source mem
@@ -241,6 +261,9 @@
             lda TEMPLATE_CHAR_MEM_MSB, y
             sta CharTemplatePtr+1 
 
+/*   I comented i out, as this part of the routine is too expensive, and we 
+     may not need it anyway, when we merge the tile with the background.
+
             // Clear the complete tile
             ldy #0
             lda #0 
@@ -250,6 +273,7 @@
             cpy #32
             bne !LoopClearTile-
 
+*/
 
             // Copy the template char, so we can
             // use x as an index
@@ -260,6 +284,7 @@
             dey 
             bpl !LoopCopyTemplateChar- 
 
+        
             // Now update vertical shift
             ldy #0
             ldx #0
@@ -278,10 +303,29 @@
             cpy #16 
             bne !- 
 
-            // Now update horizontal shift
+        // ---------------------------
+        // Now update horizontal shift
+        // ---------------------------
         !HorizontalShift:
-
-
+            ldy #15 // WE need to shift 16 rows [0-15] 
+        !LoopShiftX:
+            lda #0 
+            sta TMP                 // Right Byte of line 
+            ldx XOffset
+            beq !XShiftEnd+
+            lda (CharDataPtr), y
+        !:
+            lsr                     // Lowest bit in carry flag
+            ror TMP
+            dex
+            bne !- 
+            sta (CharDataPtr), y
+            lda TMP
+            sta (CharDataPtrRight), y
+            
+            dey 
+            bpl !LoopShiftX- 
+        !XShiftEnd:
         rts
     }
 
@@ -406,14 +450,16 @@
 
             .label TMP_SPRITE_XPOS  = zpTemp00 
             .label TMP_SPRITE_INDEX = zpTemp01 
-
-            stx TMP_SPRITE_XPOS 
+            
+            stx TMP_SPRITE_XPOS
             ldx CURRENT_SPRITE_INDEX
             stx TMP_SPRITE_INDEX
             sta ID,x 
             tya
             sta YPOS,x 
             lda TMP_SPRITE_XPOS
+            asl // Multiply xposition by two, because we are in multi color mode.
+                // Each pixel takes two bits (and is diesplayd in double width)
             sta XPOS_LSB,x
             lda #0 
             rol 
@@ -426,7 +472,33 @@
         !:
             sta CURRENT_SPRITE_INDEX 
             ldx TMP_SPRITE_INDEX
+
             rts
+    }
+
+
+    CreateSpriteMaskTable: {
+
+            ldx #00
+        !loop:
+            txa 
+            and #%10101010
+            sta zpTemp00 
+            lsr 
+            ora zpTemp00
+            sta zpTemp00
+
+            txa
+            and #%01010101
+            sta zpTemp01 
+            asl 
+            ora zpTemp01 
+            ora zpTemp00
+            eor #$ff 
+            sta SPRITE_MASK_TABLE, x
+            inx
+            bne !loop- 
+        rts
     }
 
     

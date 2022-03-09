@@ -35,7 +35,7 @@ main:
     
     lda #[ID_PLAYER_BULLET]
     clc 
-    ldx #$08
+    ldx #$03
     ldy #$08
     jsr SOFTSPRITE.AddSprite
     
@@ -48,7 +48,7 @@ main:
     ldx #0
     lda #$5a // "1" Character
     jsr SOFTSPRITE.SetSpriteChar
-    //jsr SOFTSPRITE.DrawSprites
+    //jsr SOFTSPRITE.D  rawSprites
 
     ldx #0  
     jsr SOFTSPRITE.UpdateSingleSprite
@@ -71,7 +71,7 @@ main:
     ldy #0
     jsr SCREEN.color_row
 
-    M_INSTALL_RASTER_IRQ(raster_irq_gameloop, 0)
+    M_INSTALL_RASTER_IRQ(raster_irq_gameloop, $FF)
 !:
     M_WAIT_FOR_RASTERLINE_V(255)
     inc FRAME_COUNTER
@@ -91,7 +91,7 @@ __COLOR_RAMP_01:
 
 raster_irq_gameloop: {
         M_IRQ_START_L(irq_exit)
-        //inc BORDER_COLOR
+        inc BORDER_COLOR
         
         M_SET_TEXT_MULTICOLORS(COLOR_LIGHTGREEN, COLOR_WHITE)
 
@@ -115,7 +115,22 @@ raster_irq_gameloop: {
         jsr PLAYER.JumpAndFall
         jsr PLAYER.Draw
         jsr ANIMATION.animate_door
-        //dec BORDER_COLOR
+
+        
+        ldx #0
+        jsr SOFTSPRITE.ClearSingleSprite 
+        lda #0 
+        ldx #1 
+        ldy #0 
+        jsr SOFTSPRITE.MoveSprite 
+        ldx #0
+        
+        jsr SOFTSPRITE.UpdateSingleSprite
+        
+        ldx #0
+        jsr SOFTSPRITE.DrawSingleSprite
+        
+        dec BORDER_COLOR
         
         // -------------------------------------
         // BG Color Animation
@@ -134,7 +149,8 @@ raster_irq_gameloop: {
         M_SET_BORDER_COLOR_V(COLOR_BLACK)
         M_RASTER_IRQ(raster_irq_gameloop, 0)
         */
-        M_RASTER_IRQ(raster_irq_gameloop, 0)
+        //M_RASTER_IRQ(raster_irq_gameloop, $FE)
+        M_ACK_ANY_IRQ()
         jmp irq_exit
 }
 

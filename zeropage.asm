@@ -11,6 +11,7 @@
     ZP_num1Hi:                  .byte $00
     ZP_num2:                    .byte $00
     ZP_num2Hi:                  .byte $00
+    zpTempVector01:             .word $0000
     ZP_fgColor:                 .byte $00
     zpPlayerX:                  .byte $00
     zpPlayerY:                  .byte $00
