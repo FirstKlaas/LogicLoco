@@ -127,10 +127,9 @@
     // wide.
     MoveSprite: {
         .label DX = zpTemp00 
-        .label DY = zpTemp01 
             
             stx DX  // Save dx, so we can use x register 
-            sty DY
+            sty [!SMC_DY+]+1
             tax     // index to accu 
 
             // Chech the ID.
@@ -141,7 +140,8 @@
         !:
             lda YPOS, x
             clc 
-            adc DY 
+        !SMC_DY:    // Self modified code
+            adc #$EE 
             sta YPOS, x
             clc  
             lda DX
@@ -263,31 +263,6 @@
             //sta CharTemplatePtr+1 
             sta [!SelfModTemplateRead+]+2
 
-/*   I comented i out, as this part of the routine is too expensive, and we 
-     may not need it anyway, when we merge the tile with the background.
-
-            // Clear the complete tile
-            ldy #0
-            lda #0 
-        !LoopClearTile:
-            sta (CharDataPtr), y        
-            iny 
-            cpy #32
-            bne !LoopClearTile-
-
-*/
-
-            // Copy the template char, so we can
-            // use x as an index
-/*
-            ldy #7 
-        !LoopCopyTemplateChar:
-            lda (CharTemplatePtr), y
-            sta TEMPLATE_CHAR, y
-            dey 
-            bpl !LoopCopyTemplateChar- 
-
-*/        
             // Now update vertical shift
             ldy #0
             ldx #0
