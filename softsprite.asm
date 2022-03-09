@@ -257,9 +257,11 @@
             lda ID, x // Load the sprite id and use it as the index
             tay
             lda TEMPLATE_CHAR_MEM_LSB, y
-            sta CharTemplatePtr 
+            //sta CharTemplatePtr
+            sta [!SelfModTemplateRead+]+1 
             lda TEMPLATE_CHAR_MEM_MSB, y
-            sta CharTemplatePtr+1 
+            //sta CharTemplatePtr+1 
+            sta [!SelfModTemplateRead+]+2
 
 /*   I comented i out, as this part of the routine is too expensive, and we 
      may not need it anyway, when we merge the tile with the background.
@@ -277,6 +279,7 @@
 
             // Copy the template char, so we can
             // use x as an index
+/*
             ldy #7 
         !LoopCopyTemplateChar:
             lda (CharTemplatePtr), y
@@ -284,7 +287,7 @@
             dey 
             bpl !LoopCopyTemplateChar- 
 
-        
+*/        
             // Now update vertical shift
             ldy #0
             ldx #0
@@ -295,7 +298,18 @@
             cpx #8 
             beq !Next+              // If we have copied the complete char already
                                     // skip. We continue to fill with blank lines
-            lda TEMPLATE_CHAR,x
+            // Hier startet die Optimierung
+            // Bisher greifen wir auf den kopierten Speicher zu, da indirekte Adressierung
+            // mit Index nur über das Y Register geht. So müssten wir zwischen den beiden
+            // Zugriffen immer das Y Register switchen, was auch nicht performant ist.
+            // Der Ansatz hier ist mit Selbstmodifizierendem Code zu arbeiten und das 
+            // X-Register für den lesenden Index zu nehmen.   
+            // Original:
+            // lda TEMPLATE_CHAR,x
+            // New:
+        !SelfModTemplateRead:
+            lda $BEEF,x 
+
             inx
         !Next:
             sta (CharDataPtr), y        
