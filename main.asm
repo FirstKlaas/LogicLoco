@@ -38,26 +38,12 @@ main:
     ldx #$03
     ldy #$08
     jsr SOFTSPRITE.AddSprite
-    
-    
+        
     lda #0 
     ldx #0 
     ldy #4 
     jsr SOFTSPRITE.MoveSprite 
     
-    ldx #0
-    lda #$5a // "1" Character
-    jsr SOFTSPRITE.SetSpriteChar
-    //jsr SOFTSPRITE.D  rawSprites
-
-    ldx #0  
-    jsr SOFTSPRITE.UpdateSingleSprite
-    ldx #0
-    jsr SOFTSPRITE.DrawSingleSprite
-
-    //jsr SOFTSPRITE.ClearSingleSprite 
-
-
     // Print blanks in the first line
     lda #0
     ldx #40
@@ -120,8 +106,8 @@ raster_irq_gameloop: {
         ldx #0
         jsr SOFTSPRITE.ClearSingleSprite 
         lda #0 
-        ldx #1 
-        ldy #0 
+        ldx #4 
+        ldy #0
         jsr SOFTSPRITE.MoveSprite 
         ldx #0
         

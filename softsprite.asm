@@ -7,10 +7,14 @@
 .namespace SOFTSPRITE {
 
     .const NUMBER_OF_SPRITES = 8
-    .const SPRITE_CHARSET_START = $5a
+    .const SPRITE_CHARSET_START = $e0   
+    .const SPRITE_BULLET_CHAR =  $5a   
+
+    SPRITE_CHAR_INDEX_TABLE:
+        .fill 8, SPRITE_CHARSET_START + i*4
 
     _TEMPLATE_CHARS:
-        .byte $00, $4e
+        .byte $00, SPRITE_BULLET_CHAR
     __TEMPLATE_CHARS:
 
     .label TEMPLATE_CHARS = _TEMPLATE_CHARS
@@ -32,18 +36,28 @@
     .print "Template Char MEM MSB " + toHexString(TEMPLATE_CHAR_MEM_MSB)
     .print "SpriteMask Table      " + toHexString(SPRITE_MASK_TABLE)
 
+
+    CHARSET_MEM_LSB: .fill 256, $00 
+    CHARSET_MEM_MSB: .fill 256, $00
+    
     _DATA:
         .fill NUMBER_OF_SPRITES, $00  // ID
         .fill NUMBER_OF_SPRITES, $00  // XPOS_LSB
         .fill NUMBER_OF_SPRITES, $00  // XPOS_MSB
         .fill NUMBER_OF_SPRITES, $00  // YPOS
         .fill NUMBER_OF_SPRITES, $00  // Char Index. First character of four in a row.
+        .fill NUMBER_OF_SPRITES, $00  // CharXPOS
+        .fill NUMBER_OF_SPRITES, $00  // CharYPOS
+        
 
     .label ID                   = _DATA
     .label XPOS_LSB             = _DATA + NUMBER_OF_SPRITES
     .label XPOS_MSB             = _DATA + [2 * NUMBER_OF_SPRITES]
     .label YPOS                 = _DATA + [3 * NUMBER_OF_SPRITES]
     .label CHAR_INDEX           = _DATA + [4 * NUMBER_OF_SPRITES]
+    .label CHAR_XPOS            = _DATA + [5 * NUMBER_OF_SPRITES]
+    .label CHAR_YPOS            = _DATA + [6 * NUMBER_OF_SPRITES]
+    
 
     .label SCREEN_BUFFER_PTR    = $cc00
     .label SCREEN_RAM_PTR       = $c000
@@ -80,6 +94,7 @@
             bpl !loop-
 
         jsr CreateSpriteMaskTable
+        jsr CalculateFontPtrTable
         rts
     }
 
@@ -126,25 +141,37 @@
     // In multicolor mode each character pixel is two pixel
     // wide.
     MoveSprite: {
-        .label DX = zpTemp00 
             
-            stx DX  // Save dx, so we can use x register 
             sty [!SMC_DY+]+1
+            stx [!SMC_DX+]+1
+
+            cpx #00 
+            // beq !UpdateYpos+    // If we don't move vertically, we do not need
+                                // to recalculate y position
             tax     // index to accu 
 
-            // Chech the ID.
+            // Check the ID.
             lda ID,x 
-            bne !+
+            bne !UpdateYpos+
             rts         // Ignore the sprite, if the ID is zero, as zero
                         // indicates an inactive sprite
-        !:
+        !UpdateYpos:
             lda YPOS, x
             clc 
         !SMC_DY:    // Self modified code
             adc #$EE 
             sta YPOS, x
+            // Now calculate the ypos in char space
+            lsr 
+            lsr 
+            lsr 
+            sta CHAR_YPOS, x
+
+        !UpdateXpos:
             clc  
-            lda DX
+        !SMC_DX:
+            lda #$EE  // Self modified code
+            //beq !Exit+  // if dx = 0, we do not need to recalculate position
             asl
              
             adc XPOS_LSB,x
@@ -152,7 +179,15 @@
             lda XPOS_MSB,x
             adc #00
             sta XPOS_MSB,x
-            
+
+            // Now calculate x position in char space
+            lsr 
+            lda XPOS_LSB,x
+            ror 
+            lsr 
+            lsr 
+            sta CHAR_XPOS, x
+        !Exit:
         rts
     }
 
@@ -169,10 +204,7 @@
         rts         // Ignoring "disabled" sprites
     !:
         // Store the screen row pointer in zeropage        
-        lda YPOS, x
-        lsr                 // Converting from pixel space to 
-        lsr                 // character space, by dividing by eight
-        lsr
+        lda CHAR_YPOS, x
         tay
         lda SCREEN.ROW_ADR.lo, y
         sta SCREEN_ROW_PTR
@@ -184,13 +216,7 @@
         lda OFFSCREEN_ROW_HI, y
         sta BUFFER_ROW_PTR+1 
 
-        lda XPOS_MSB, x     // Dividing xpos by eight.
-        lsr                 // Dividing High Byte, updating carry bit
-        lda XPOS_LSB, x 
-        ror                 // Dividing by two, taking carry into account
-        lsr 
-        lsr
-
+        lda CHAR_XPOS, x
         tay
 
         // Top Left
@@ -222,10 +248,13 @@
         .label XOffset  = zpTemp00 
         .label YOffset  = zpTemp01
         .label TMP      = zpTemp02
-        .label CharDataPtr = ZP_num1
-        .label CharDataPtrRight = zpTempVector01
+        .label SpriteDataPtr = zpTempVector03
+        .label SpriteDataPtrRight = zpTempVector01
         .label CharTemplatePtr = ZP_num2
+        .label ScreenPointer = ZP_num1 
+        .label ScreenChars = zpTemp04
 
+            stx [!MaskTile+]+1
             lda ID,x 
             bne !+
             rts     // If ID is zero, igore sprite.
@@ -243,13 +272,13 @@
             // Setup pointer to the char memory for this sprite/tile
             // This is the target mem
             lda SPRITE_DATA_TILE_LSB, x
-            sta CharDataPtr 
+            sta SpriteDataPtr 
             clc 
             adc #16
-            sta CharDataPtrRight
+            sta SpriteDataPtrRight
             lda SPRITE_DATA_TILE_MSB, x
-            sta CharDataPtr+1 
-            sta CharDataPtrRight+1
+            sta SpriteDataPtr+1 
+            sta SpriteDataPtrRight+1
 
 
             // Setup the pointer to the char template
@@ -267,27 +296,19 @@
             ldy #0
             ldx #0
         !:
-            lda #00
+            lda #00                 // Im Default gehen wir davon aus eine transparente
+                                    // Zeile (Byte) im Zeichen zu schreiben
             cpy YOffset
             bcc !Next+
             cpx #8 
             beq !Next+              // If we have copied the complete char already
                                     // skip. We continue to fill with blank lines
-            // Hier startet die Optimierung
-            // Bisher greifen wir auf den kopierten Speicher zu, da indirekte Adressierung
-            // mit Index nur über das Y Register geht. So müssten wir zwischen den beiden
-            // Zugriffen immer das Y Register switchen, was auch nicht performant ist.
-            // Der Ansatz hier ist mit Selbstmodifizierendem Code zu arbeiten und das 
-            // X-Register für den lesenden Index zu nehmen.   
-            // Original:
-            // lda TEMPLATE_CHAR,x
-            // New:
         !SelfModTemplateRead:
-            lda $BEEF,x 
+            lda $BEEF,x             // Hier ein byte aus dem Template character kopieren.
 
             inx
         !Next:
-            sta (CharDataPtr), y        
+            sta (SpriteDataPtr), y
             iny 
             cpy #16 
             bne !- 
@@ -300,21 +321,122 @@
         !LoopShiftX:
             lda #0 
             sta TMP                 // Right Byte of line 
+            sta (SpriteDataPtrRight), y
             ldx XOffset
-            beq !XShiftEnd+
-            lda (CharDataPtr), y
+            beq !NextRow+
+            lda (SpriteDataPtr), y
         !:
             lsr                     // Lowest bit in carry flag
             ror TMP
             dex
             bne !- 
-            sta (CharDataPtr), y
+            sta (SpriteDataPtr), y
             lda TMP
-            sta (CharDataPtrRight), y
-            
+            sta (SpriteDataPtrRight), y
+        !NextRow:
             dey 
             bpl !LoopShiftX- 
         !XShiftEnd:
+
+        // Nun das Masking
+        // CharDataPointer zeigt auf das erste byte des ersten zeichens aus dem
+        // Tile. SpriteDataPtrRight zeigt auf das erste byte der letzen beiden
+        // Zeichen des Tiles.
+
+    !MaskTile:
+
+        ldx #$EE  // Self modified. Index of the sprite. 
+        
+        // Get the Character on the screen at the top left
+        // position of the tile
+        ldy CHAR_YPOS, x
+        lda CHAR_XPOS, x
+        tax 
+        lda SCREEN.ROW_ADR.hi, y
+        sta ScreenPointer+1
+        lda SCREEN.ROW_ADR.lo , y
+        sta ScreenPointer
+        txa
+        tay
+        lda (ScreenPointer), y
+        sta ScreenChars
+        iny 
+        lda (ScreenPointer), y
+        sta ScreenChars+1 
+        tya 
+        clc
+        adc #39 
+        tay 
+        lda (ScreenPointer), y
+        sta ScreenChars+2
+        iny 
+        lda (ScreenPointer), y
+        sta ScreenChars+3
+        lda ScreenChars
+        // The Screencharacter has to be in y
+        // Spritedata pointer needs to point the
+        // the right location in the sprite
+        tay
+        jsr MaskCharacter   
+        clc
+        lda SpriteDataPtr 
+        adc #8 
+        sta SpriteDataPtr
+        lda SpriteDataPtr+1
+        adc #00
+        sta SpriteDataPtr+1
+        ldy ScreenChars+2
+        jsr MaskCharacter   
+        lda SpriteDataPtrRight
+        sta SpriteDataPtr
+        lda SpriteDataPtrRight+1
+        sta SpriteDataPtr+1
+        ldy ScreenChars+1
+        jsr MaskCharacter   
+        clc
+        lda SpriteDataPtr 
+        adc #8 
+        sta SpriteDataPtr
+        lda SpriteDataPtr+1
+        adc #00
+        sta SpriteDataPtr+1
+        ldy ScreenChars+3
+        jsr MaskCharacter   
+        
+                
+        rts
+    }
+
+    MaskCharacter: {
+        .label SpriteDataPtr = zpTempVector03
+        .label SpriteDataPtrRight = zpTempVector01
+        .label TMP      = zpTemp02
+
+        // Store the Byte Adress of the screen
+        // space to code. This is the Source of
+        // Blending
+        lda CHARSET_MEM_LSB, y
+        sta [!BackgroundDataPtr+]+1
+        lda CHARSET_MEM_MSB, y
+        sta [!BackgroundDataPtr+]+2
+
+        ldy #7
+    !Loop:
+
+        // Load background
+    !BackgroundDataPtr:
+        lda $BEEF,y // Self mod adress to the fontspace
+        sta TMP
+        lda (SpriteDataPtr), y
+        tax
+        lda SPRITE_MASK_TABLE, x
+        and TMP
+        ora (SpriteDataPtr), y
+        sta (SpriteDataPtr), y
+
+        dey 
+        bpl !Loop-  
+
         rts
     }
 
@@ -336,24 +458,23 @@
         .label TEMP_X           = zpTemp00
 
         stx TEMP_X
-        lda YPOS, x
-        lsr 
-        lsr 
-        lsr 
-        tay
+        ldy CHAR_YPOS, x
+        // Check, if the sprite exceeds the bottom
+        cpy #25 
+        bcc !+ // if y position > 25
+        rts 
+    !:  
         lda SCREEN.ROW_ADR.lo, y
         sta SCREEN_ROW_PTR
         lda SCREEN.ROW_ADR.hi, y
         sta SCREEN_ROW_PTR+1 
 
-        lda XPOS_MSB, x
-        lsr 
-        lda XPOS_LSB, x
-        ror  
-        lsr 
-        lsr  
-        tay 
-
+        ldy CHAR_XPOS,x   
+        // Check, if the sprite exceeds the right border
+        cpy #40 
+        bcc !+  // If x position < 40, continue
+        rts
+    !:
         // Load the Character from the charset
         lda ID, x               // Load the sprite ID 
         bne !+                  // Only continue, if ID is not zero
@@ -444,8 +565,17 @@
             ldx CURRENT_SPRITE_INDEX
             stx TMP_SPRITE_INDEX
             sta ID,x 
+            // Accu contains still the ID
+            lda SPRITE_CHAR_INDEX_TABLE,x  // Load the char index of the first char of the sprite 
+            sta CHAR_INDEX,x 
+
             tya
-            sta YPOS,x 
+            sta YPOS,x
+            // Calculate char ypos by dividing by 8
+            lsr 
+            lsr 
+            lsr 
+            sta CHAR_YPOS,x  
             lda TMP_SPRITE_XPOS
             asl // Multiply xposition by two, because we are in multi color mode.
                 // Each pixel takes two bits (and is diesplayd in double width)
@@ -453,6 +583,16 @@
             lda #0 
             rol 
             sta XPOS_MSB,x
+
+            // Now calculate the xpos in char space
+            lsr 
+            lda XPOS_LSB,x
+            ror 
+            lsr 
+            lsr 
+            sta CHAR_XPOS,x 
+            
+            // Update next sprite index
             inx
             txa
             cmp #NUMBER_OF_SPRITES 
@@ -490,5 +630,27 @@
         rts
     }
 
-    
+    CalculateFontPtrTable: {
+            ldx #0
+            lda #<CHARSET 
+            sta CHARSET_MEM_LSB
+            lda #>CHARSET 
+            sta CHARSET_MEM_MSB
+             
+        !Loop:
+            lda CHARSET_MEM_MSB, x 
+            sta CHARSET_MEM_MSB+1, x
+            lda CHARSET_MEM_LSB, x
+            inx
+            clc 
+            adc #8 
+            sta CHARSET_MEM_LSB, x
+            lda CHARSET_MEM_MSB, x
+            adc #0 
+            sta CHARSET_MEM_MSB, x
+            cpx #$ff 
+            bne !Loop- 
+
+        rts             
+    }
 }

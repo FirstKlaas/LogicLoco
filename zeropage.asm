@@ -7,11 +7,17 @@
     zpTemp01:                   .byte $00
     zpTemp02:                   .byte $00
     zpTemp03:                   .byte $00
+    zpTemp04:                   .byte $00
+    zpTemp05:                   .byte $00
+    zpTemp06:                   .byte $00
+    zpTemp07:                   .byte $00
     ZP_num1:                    .byte $00
     ZP_num1Hi:                  .byte $00
     ZP_num2:                    .byte $00
     ZP_num2Hi:                  .byte $00
     zpTempVector01:             .word $0000
+    zpTempVector02:             .word $0000
+    zpTempVector03:             .word $0000
     ZP_fgColor:                 .byte $00
     zpPlayerX:                  .byte $00
     zpPlayerY:                  .byte $00
