@@ -5,6 +5,38 @@
 
     .label FRAME_COUNTER = ZP_FrameCounter
 
+
+.macro M_ADD_BULLET_SPRITE_VV(xpos, ypos) {
+    lda #[ID_PLAYER_BULLET]
+    clc 
+    ldx #[xpos]
+    ldy #[ypos]
+    jsr SOFTSPRITE.AddSprite
+}
+
+.macro M_MOVE_SPRITE_VVV(id, dx, dy) {
+    lda #[id] 
+    ldx #[dx] 
+    ldy #[dy]
+    jsr SOFTSPRITE.MoveSprite     
+}
+
+.macro M_CLEAR_SPRITE_V(id) {
+    ldx #[id]
+    jsr SOFTSPRITE.ClearSingleSprite 
+}
+
+.macro M_UPDATE_SPRITE_V(id) {
+    ldx #[id]     
+    jsr SOFTSPRITE.UpdateSingleSprite    
+}
+
+.macro M_DRAW_SPRITE_V(id) {
+    ldx #[id]
+    jsr SOFTSPRITE.DrawSingleSprite
+}
+
+
 BasicUpstart2(main)
 
 /***********************************************
@@ -33,16 +65,8 @@ main:
     jsr SOFTSPRITE.CopyScreenBuffer
 
     
-    lda #[ID_PLAYER_BULLET]
-    clc 
-    ldx #$03
-    ldy #$08
-    jsr SOFTSPRITE.AddSprite
-        
-    lda #0 
-    ldx #0 
-    ldy #4 
-    jsr SOFTSPRITE.MoveSprite 
+    M_ADD_BULLET_SPRITE_VV(3,8)
+    //M_ADD_BULLET_SPRITE_VV(20,40)
     
     // Print blanks in the first line
     lda #0
@@ -102,20 +126,13 @@ raster_irq_gameloop: {
         jsr PLAYER.Draw
         jsr ANIMATION.animate_door
 
+        M_CLEAR_SPRITE_V(0)
+        M_MOVE_SPRITE_VVV(0,4,0)
+        M_UPDATE_SPRITE_V(0)
+        M_DRAW_SPRITE_V(0)
         
-        ldx #0
-        jsr SOFTSPRITE.ClearSingleSprite 
-        lda #0 
-        ldx #4 
-        ldy #0
-        jsr SOFTSPRITE.MoveSprite 
-        ldx #0
-        
-        jsr SOFTSPRITE.UpdateSingleSprite
-        
-        ldx #0
-        jsr SOFTSPRITE.DrawSingleSprite
-        
+        //M_UPDATE_SPRITE_V(1)
+        //M_DRAW_SPRITE_V(1)
         dec BORDER_COLOR
         
         // -------------------------------------
